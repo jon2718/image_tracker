@@ -1,7 +1,7 @@
 from sklearn.mixture import GaussianMixture as GMM
-import NetworkX as nx
+import networkx as nx
 import igraph as ig
-import PyMaxflow as pmf
+import maxflow as mf
 
 class EnergyGraph:
     def __init__(self, rows, columns, gmmData = None, neighbors = 'fourNode'):
@@ -38,18 +38,17 @@ class EnergyGraph:
                 self.graph.add_edge(node, 't')
 
 
-
 class Tracker:
     def __init__(self):
         '''
         Grab the labels from the Cord platform. We are picking random data to test, 
         but we can try other data later.
         We initialize the following properties:
-            -bounding_boxes (bounding boxes for frames)
-            -num_total_boxes
-            -num_in_sample_boxes 
-            -in_sample_images (BGR format)
-            -out_sample_images (BGR format)
+            -boundingBoxes (bounding boxes for frames)
+            -numTotalBoxes
+            -numInSampleBoxes 
+            -inSampleImages (BGR format)
+            -outSampleImages (BGR format)
             -h (image height)
             -w (image width)
         '''
@@ -102,7 +101,7 @@ class Tracker:
     portion = 'foreground', convertToHSV = True, covarianceType = 'tied'):
         '''Returns GMM data for an image as a 1-D vector'''
 
-        frame = self.in_sample_imges[frameNumber]
+        frame = self.inSampleImagesframeNumber]
         if convertToHSV:
             frame = self.BGR2HSV(frame)
 
@@ -132,20 +131,17 @@ class Tracker:
         'foreground', convertToHSV, covarianceType)
         bgGNN = self.getGMMFromBB(frameNumber, numComponents, multivariateDimensions, 
         'background', convertToHSV, covarianceType)
-        image =  self.reconstruct(self.in_sample_imges[frameNumber].shape, fgGNN, 
+        image =  self.reconstruct(self.inSampleImages[frameNumber].shape, fgGNN, 
         self.boundingBoxes[frameNumber], bgGNN)
 
         return image
 
 
-
-
-    
     def getBoundingBoxCoordinates(self, bb):
-        x0=int(w*bb['x'])
-        x1=int(w*(bb['x'] + bb['w']))
-        y0=int(h*bb['y'])
-        y1=int(h*(bb['y'] + bb['h']))
+        x0=int(self.w*bb['x'])
+        x1=int(self.w*(bb['x'] + bb['w']))
+        y0=int(self.h*bb['y'])
+        y1=int(self.h*(bb['y'] + bb['h']))
         return x0, x1, y0, y1
 
     def BGR2HSV(self, frame):
@@ -154,13 +150,14 @@ class Tracker:
 
         The reason we use HSV colorspace for color detection/thresholding 
         over RGB/BGR is that HSV is more robust towards external lighting changes. 
-        This means that in cases of minor changes in external lighting (such as pale shadows,etc.) 
-        Hue values vary relatively lesser than RGB values.
+        This means that in cases of minor changes in external lighting 
+        (such as pale shadows,etc.) Hue values vary relatively lesser than RGB values.
 
-        For example, two shades of red colour might have similar Hue values, but widely different RGB values. 
-        In real life scenarios such as object tracking based on colour,we need to make sure that our program 
-        runs well irrespective of environmental changes as much as possible. So, we prefer HSV colour 
-        thresholding over RGB. :)
+        For example, two shades of red colour might have similar Hue values, 
+        but widely different RGB values. In real life scenarios such as object 
+        tracking based on colour,we need to make sure that our program 
+        runs well irrespective of environmental changes as much as possible. 
+        So, we prefer HSV colour thresholding over RGB. :)
 
         The big reason is that it separates color information (chroma) 
         from intensity or lighting (luma). Because value is separated, you can 
@@ -219,7 +216,7 @@ class Tracker:
 
 
     def extractForeground(self, image, bb):
-        '''Returns the extracted bounding box image from image
+        '''Returns the extracted bounding box image from image as 2-D array.
         In OpenCV, pixels are accessed by their (x, y)-coordinates.
         The origin, (0, 0), is located at the top-left of the image. OpenCV images 
         are zero-indexed, where the x-values go left-to-right (column number) 
@@ -230,12 +227,12 @@ class Tracker:
         pixels as (y, x)! 
         '''
         (h,w)=image.shape[:2]
-        x0, x1, y0, y1 = getBoundingBoxCoordinates(bb)
+        x0, x1, y0, y1 = self.getBoundingBoxCoordinates(bb)
         extract = image[y0:y1, x0: x1, :]
         return extract
 
     def extractBackground(self, image, bb):
-        x0, x1, y0, y1 = getBoundingBoxCoordinates(bb)
+        x0, x1, y0, y1 = self.getBoundingBoxCoordinates(bb)
 
         bool_arr = np.ones(image.shape[:2], dtype=bool)
         bool_arr[y0:y1, x0: x1] = False
@@ -247,8 +244,10 @@ class Tracker:
         width = shape[1]
         height = shape[0]
         channels = shape[2]
+
+        foreground1D = foreground.reshape(-1, 3)
         
-        x0, x1, y0, y1 = getBoundingBoxCoordinates(bb)
+        x0, x1, y0, y1 = self.getBoundingBoxCoordinates(bb)
 
         image = np.zeros((height, width, channels), dtype=int)
         foregroundPointer = 0 
@@ -256,12 +255,12 @@ class Tracker:
 
         for row in range(height):
             for column in range(width):
-            if row >= y0 and row < y1 and column >= x0 and column < x1:
-                image[row][column] = foreground[foregroundPointer]
-                foregroundPointer += 1
-            else:
-                image[row][column] = background[backgroundPointer]
-                backgroundPointer += 1
+                if row >= y0 and row < y1 and column >= x0 and column < x1:
+                    image[row][column] = foreground1D[foregroundPointer]
+                    foregroundPointer += 1
+                else:
+                    image[row][column] = background[backgroundPointer]
+                    backgroundPointer += 1
         
         return image
 
