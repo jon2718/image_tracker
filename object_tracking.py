@@ -99,28 +99,25 @@ class Tracker:
 
     def getGMMFromBB(self, frameNumber, numComponents, multivariateDimensions = 3, 
     portion = 'foreground', convertToHSV = True, covarianceType = 'tied'):
-        '''Returns GMM data for an image as a 1-D vector'''
-
-        frame = self.inSampleImagesframeNumber]
+        '''Returns GMM data for an image as a 1-D vector 
+           To display as an image map, calling functions must assemble into
+           2-D array.
+        '''
+        frame = self.inSampleImages[frameNumber]
         if convertToHSV:
             frame = self.BGR2HSV(frame)
 
         if portion == 'foreground':
             img = self.extractForeground(frame, self.boundingBoxes[frameNumber])
+            img = img.reshape((-1, 3)) #Reshape to 1-D vector fore foreground only
         elif portion == 'background':
-            img = self.extractForeground(frame, self.boundingBoxes[frameNumber])
+            img = self.extractBackground(frame, self.boundingBoxes[frameNumber])
         else:
             return None
 
-        imgReshape = img.reshape((-1,3))
-        gmmModel = GMM(n_components = numComponents, covariance_type = covarianceType).fit(imgReshape)
-        gmmLabels = gmmModel.predict(imgReshape)
-        
-        #We are not returning GMM data as image currently
-        originalShape = img.shape
-        gmmDataAsImage = gmmLabels.reshape(originalShape[0], originalShape[1])
-        #return gmmDataAsImage
-        
+        gmmModel = GMM(n_components = numComponents, covariance_type = covarianceType).fit(img)
+        gmmLabels = gmmModel.predict(img)
+
         return gmmLabels
     
     def createGNNMapFromImage(self, frameNumber, numComponents, multivariateDimensions = 3, 
@@ -131,10 +128,9 @@ class Tracker:
         'foreground', convertToHSV, covarianceType)
         bgGNN = self.getGMMFromBB(frameNumber, numComponents, multivariateDimensions, 
         'background', convertToHSV, covarianceType)
-        image =  self.reconstruct(self.inSampleImages[frameNumber].shape, fgGNN, 
-        self.boundingBoxes[frameNumber], bgGNN)
-
-        return image
+       
+        #print(fgGNN.shape, bgGNN.shape)
+        return fgGNN, bgGNN
 
 
     def getBoundingBoxCoordinates(self, bb):
@@ -263,4 +259,29 @@ class Tracker:
                     backgroundPointer += 1
         
         return image
+
+    def constructGmmMap(self, frameNumber, numForegroundComponents = 4,
+                        numBackgroundComponents = 4, multivariateDimensions = 3,
+                        convertToHSV = True, covarianceType = 'tied'):
+      width = self.inSampleImages[frameNumber].shape[1]
+      height = self.inSampleImages[frameNumber].shape[0]
+
+
+      fgGNN, bgGNN = t.createGNNMapFromImage(0, 4) #Fix for fg and bg
+      x0, x1, y0, y1 = self.getBoundingBoxCoordinates(self.boundingBoxes[frameNumber])
+
+      map = np.zeros((height, width), dtype=float)
+      foregroundPointer = 0 
+      backgroundPointer = 0
+
+      for row in range(height):
+            for column in range(width):
+                if row >= y0 and row < y1 and column >= x0 and column < x1:
+                    map[row][column] = fgGNN[foregroundPointer]
+                    foregroundPointer += 1
+                else:
+                  map[row][column] = bgGNN[backgroundPointer]
+                  backgroundPointer += 1
+        
+      return map
 
