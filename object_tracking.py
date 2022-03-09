@@ -102,6 +102,7 @@ class Tracker:
         '''Returns GMM data for an image as a 1-D vector 
            To display as an image map, calling functions must assemble into
            2-D array.
+           For image tracking use a 5D multivariate Gaussian with 3 color values and 2 spatial values
         '''
         frame = self.inSampleImages[frameNumber]
         if convertToHSV:
@@ -266,8 +267,8 @@ class Tracker:
       width = self.inSampleImages[frameNumber].shape[1]
       height = self.inSampleImages[frameNumber].shape[0]
 
-
-      fgGNN, bgGNN = t.createGNNMapFromImage(0, 4) #Fix for fg and bg
+      '''Currently support ONLY same number of components in background and foreground'''
+      fgGNN, bgGNN = t.createGNNMapFromImage(frameNumber, numForegroundComponents) 
       x0, x1, y0, y1 = self.getBoundingBoxCoordinates(self.boundingBoxes[frameNumber])
 
       map = np.zeros((height, width), dtype=float)
