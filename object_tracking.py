@@ -102,7 +102,8 @@ class Tracker:
         '''Returns GMM data for an image as a 1-D vector 
            To display as an image map, calling functions must assemble into
            2-D array.
-           For image tracking use a 5D multivariate Gaussian with 3 color values and 2 spatial values
+           For image tracking use a 5D multivariate Gaussian with 3 color values and 2 spatial values.
+           Use this function to get GMM from an entire image by setting portion to foreground!
         '''
         frame = self.inSampleImages[frameNumber]
         if convertToHSV:
@@ -123,7 +124,7 @@ class Tracker:
     
     def createGNNMapFromImage(self, frameNumber, numComponents, multivariateDimensions = 3, 
     convertToHSV = True, covarianceType = 'tied'):
-        '''Returns GMM map from an image as a 2-D vector'''
+        '''Returns GMM map for foreground and background '''
 
         fgGNN = self.getGMMFromBB(frameNumber, numComponents, multivariateDimensions, 
         'foreground', convertToHSV, covarianceType)
@@ -202,29 +203,41 @@ class Tracker:
         return (1/3) * rgbVector.sum()
 
     def totalNeighborIntensityDifference(self, image, row, column, neighbors = 'fourNode'):
-    rows = image.shape[0]
-    columns = image.shape[1]
-    
-    centerIntensity = self.intensity(image[row][column])
+        rows = image.shape[0]
+        columns = image.shape[1]
+        
+        centerIntensity = self.intensity(image[row][column])
 
-    neighboringIntensity = 0
+        neighboringIntensity = 0
 
-    if row > 0:
-        neighboringIntensity += self.intensity(image[row - 1][column]) - centerIntensity
-    
-    if column > 0:
-        neighboringIntensity += self.intensity(image[row][column - 1]) - centerIntensity
+        if row > 0:
+            neighboringIntensity += self.intensity(image[row - 1][column]) - centerIntensity
+        
+        if column > 0:
+            neighboringIntensity += self.intensity(image[row][column - 1]) - centerIntensity
 
-    if row < rows - 1:
-        neighboringIntensity += self.intensity(image[row + 1][column]) - centerIntensity
+        if row < rows - 1:
+            neighboringIntensity += self.intensity(image[row + 1][column]) - centerIntensity
 
-    if row < columns - 1:
-        neighboringIntensity += self.intensity(image[row][column + 1]) - centerIntensity
+        if row < columns - 1:
+            neighboringIntensity += self.intensity(image[row][column + 1]) - centerIntensity
 
-    if neighbors == 'eightNode':
-        pass  #TBD
+        if neighbors == 'eightNode':
+            pass  #TBD
 
-    return neighboringIntensity
+        return neighboringIntensity
+
+    def totalIntensityDifference(self, image):
+        '''Assume image is in RGB'''
+        ti = 0
+        rows = image.shape[0]
+        columns = image.shape[1]
+
+        for row in rows:
+            for columns in columns:
+                ti += self.totalNeighborIntensityDifference(image, row, column)
+        
+        return ti
 
     def createGraphFromImage(self, gmmData, neighbors = '4-Neighbor'):
         '''
