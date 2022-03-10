@@ -198,6 +198,34 @@ class Tracker:
         bgr = cv2.cvtColor(frame,cv2.COLOR_HSV2BGR)
         return bgr
 
+    def intensity(self, rgbVector):
+        return (1/3) * rgbVector.sum()
+
+    def totalNeighborIntensityDifference(self, image, row, column, neighbors = 'fourNode'):
+    rows = image.shape[0]
+    columns = image.shape[1]
+    
+    centerIntensity = self.intensity(image[row][column])
+
+    neighboringIntensity = 0
+
+    if row > 0:
+        neighboringIntensity += self.intensity(image[row - 1][column]) - centerIntensity
+    
+    if column > 0:
+        neighboringIntensity += self.intensity(image[row][column - 1]) - centerIntensity
+
+    if row < rows - 1:
+        neighboringIntensity += self.intensity(image[row + 1][column]) - centerIntensity
+
+    if row < columns - 1:
+        neighboringIntensity += self.intensity(image[row][column + 1]) - centerIntensity
+
+    if neighbors == 'eightNode':
+        pass  #TBD
+
+    return neighboringIntensity
+
     def createGraphFromImage(self, gmmData, neighbors = '4-Neighbor'):
         '''
         Image is any 2-D array of data associated with pixels
