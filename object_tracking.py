@@ -29,7 +29,7 @@ class EnergyGraph:
         
         rows = image.shape[0]
         columns = image.shape[1]
-        self.sigma2 = self.totalIntensityDifference(image)
+        self.sigma2 = self.totalIntensityDifference(image)**2
 
         self.graph = nx.DiGraph()
 
@@ -66,8 +66,30 @@ class EnergyGraph:
 
     def Vpq(self, image, row, column, d = 1, neighbors = 'fournode'):
         d = 1
-        tp = self.intensity(image[row][column])
+        rows = image.shape[0]
+        columns = image.shape[1]
+        twoSigma2 = 2*self.sigma2
+        ip = self.intensity(image[row][column])
         vpq = 0
+        if row > 0:
+            iq = self.intensity(image[row - 1][column])
+            vpq += math.exp((ip-iq)**2/self.sigma2)
+
+        if row < rows - 1:
+            iq = self.intensity(image[row + 1][column])
+            vpq += math.exp((ip-iq)**2/self.sigma2)
+
+        if column > 0:
+            iq = self.intensity(image[row][column - 1])
+            vpq += math.exp((ip-iq)**2/self.sigma2)
+
+        if column < columns - 1:
+            iq = self.intensity(image[row][column + 1])
+            vpq += math.exp((ip-iq)**2/self.sigma2)
+        
+        if neighbors == 'eightnode':
+            pass
+        
         return vpq
         
         
