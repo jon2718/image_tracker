@@ -21,14 +21,22 @@ from sklearn.mixture import GaussianMixture as GMM
 import networkx as nx
 import igraph as ig
 import maxflow as mf
+import math
 
 class EnergyGraph:
-    def __init__(self, rows, columns, gmmData = None, neighbors = 'fourNode'):
+    '''Receives a 2D image of GMM data and an image in BGR format'''
+    def __init__(self, image, gmmData = None, neighbors = 'fourNode'):
+        
+        rows = image.shape[0]
+        columns = image.shape[1]
+        self.sigma2 = self.totalIntensityDifference(image)
+
         self.graph = nx.DiGraph()
 
         for row in range(rows):
             for column in range(columns):
                 node = (row, column)
+
                 #North
                 if row > 0:
                     north = (row - 1, column)
@@ -55,6 +63,54 @@ class EnergyGraph:
                 #Add source and sink node edges
                 self.graph.add_edge('s', node)
                 self.graph.add_edge(node, 't')
+
+    def Vpq(self, image, row, column, d = 1, neighbors = 'fournode'):
+        d = 1
+        tp = self.intensity(image[row][column])
+        vpq = 0
+        return vpq
+        
+        
+
+    def totalNeighborIntensityDifference(self, image, row, column, neighbors = 'fourNode'):
+        rows = image.shape[0]
+        columns = image.shape[1]
+        
+        centerIntensity = self.intensity(image[row][column])
+
+        neighboringIntensity = 0
+
+        if row > 0:
+            neighboringIntensity += self.intensity(image[row - 1][column]) - centerIntensity
+        
+        if column > 0:
+            neighboringIntensity += self.intensity(image[row][column - 1]) - centerIntensity
+
+        if row < rows - 1:
+            neighboringIntensity += self.intensity(image[row + 1][column]) - centerIntensity
+
+        if row < columns - 1:
+            neighboringIntensity += self.intensity(image[row][column + 1]) - centerIntensity
+
+        if neighbors == 'eightNode':
+            pass  #TBD
+
+        return neighboringIntensity
+
+    def totalIntensityDifference(self, image):
+        '''Assume image is in RGB'''
+        ti = 0
+        rows = image.shape[0]
+        columns = image.shape[1]
+
+        for row in rows:
+            for column in columns:
+                ti += self.totalNeighborIntensityDifference(image, row, column)
+        
+        return ti
+
+    def intensity(self, rgbVector):
+        return (1/3) * rgbVector.sum()
 
 
 class Tracker:
@@ -218,45 +274,6 @@ class Tracker:
         bgr = cv2.cvtColor(frame,cv2.COLOR_HSV2BGR)
         return bgr
 
-    def intensity(self, rgbVector):
-        return (1/3) * rgbVector.sum()
-
-    def totalNeighborIntensityDifference(self, image, row, column, neighbors = 'fourNode'):
-        rows = image.shape[0]
-        columns = image.shape[1]
-        
-        centerIntensity = self.intensity(image[row][column])
-
-        neighboringIntensity = 0
-
-        if row > 0:
-            neighboringIntensity += self.intensity(image[row - 1][column]) - centerIntensity
-        
-        if column > 0:
-            neighboringIntensity += self.intensity(image[row][column - 1]) - centerIntensity
-
-        if row < rows - 1:
-            neighboringIntensity += self.intensity(image[row + 1][column]) - centerIntensity
-
-        if row < columns - 1:
-            neighboringIntensity += self.intensity(image[row][column + 1]) - centerIntensity
-
-        if neighbors == 'eightNode':
-            pass  #TBD
-
-        return neighboringIntensity
-
-    def totalIntensityDifference(self, image):
-        '''Assume image is in RGB'''
-        ti = 0
-        rows = image.shape[0]
-        columns = image.shape[1]
-
-        for row in rows:
-            for columns in columns:
-                ti += self.totalNeighborIntensityDifference(image, row, column)
-        
-        return ti
 
     def createGraphFromImage(self, gmmData, neighbors = '4-Neighbor'):
         '''
